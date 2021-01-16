@@ -1,13 +1,14 @@
 import argparse
+import decimal
 import json
 import logging
 import os
 import requests
 
+
 import boto3
 import botocore
 from web3 import Web3
-
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
@@ -21,6 +22,7 @@ HTTP_PROVIDER_URL = os.environ["HTTP_PROVIDER_URL"]
 FLEEK_KEY_ID = os.environ["FLEEK_KEY_ID"]
 FLEEK_KEY = os.environ["FLEEK_KEY"]
 FLEEK_BUCKET = os.environ["FLEEK_BUCKET"]
+INITIAL_VIRTUAL_PRICE = "1000000000000000000"
 
 # TODO npm run build before this is accessible
 SWAP_CONTRACT_ABI_PATH = "Swap.json"
@@ -43,7 +45,8 @@ def get_btc_price_at_timestamp_date(ts):
         )
         price_info = requests.get(url).json()
         prices = price_info["prices"]
-        return prices[-1][1]
+        price = int(decimal.Decimal(prices[-1][1]).quantize(decimal.Decimal("1")))
+        return price
     except Exception as e:
         logger.error(f"Could not fetch btc price at {ts}: {e}")
 
@@ -112,9 +115,14 @@ def main(args):
     while w3.eth.blockNumber > next_block_num:
         logger.info(f"Fetching data for block: {next_block_num}")
 
-        virtual_price = swap.functions.getVirtualPrice().call(
-            block_identifier=next_block_num
+        # Virtual price has more digits than Number.MAX_SAFE_INTEGER.
+        # When the pool initializes, the virtual price is returned as 0 but it's
+        # actually effectively 1
+        virtual_price = str(
+            swap.functions.getVirtualPrice().call(block_identifier=next_block_num)
+            or INITIAL_VIRTUAL_PRICE
         )
+
         block_data = w3.eth.getBlock(next_block_num)
         btc_price = get_btc_price_at_timestamp_date(block_data.timestamp)
         if not btc_price:
@@ -126,12 +134,18 @@ def main(args):
         # if we're regenerating a lot of blocks and script stops due to provider
         # / rate limiting errors
         stats_bytes = json.dumps(stats_content, separators=(",", ":")).encode("utf-8")
-        fleek_aws_client.put_object(
-            Bucket=FLEEK_BUCKET, Key=STATS_FILE_PATH, Body=stats_bytes
-        )
-        logger.info(
-            f"Uploaded cumulative stats to Fleek (latest block: {next_block_num})"
-        )
+        while True:
+            try:
+                fleek_aws_client.put_object(
+                    Bucket=FLEEK_BUCKET, Key=STATS_FILE_PATH, Body=stats_bytes
+                )
+                logger.info(
+                    f"Uploaded cumulative stats to Fleek (latest block: {next_block_num})"
+                )
+                break
+            except Exception as e:
+                logger.error(f"Error uploading stats file: {e}")
+
         next_block_num += ADD_STATS_EVERY_N_BLOCK
 
     logger.info("Done for now.")
