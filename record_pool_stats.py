@@ -8,7 +8,7 @@ import requests
 
 import boto3
 import botocore
-from web3 import Web3
+import web3
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
@@ -84,7 +84,7 @@ def main(args):
     except Exception as e:
         logger.error(f"Could not load swap contract ABI: {e}")
 
-    w3 = Web3(Web3.HTTPProvider(HTTP_PROVIDER_URL))
+    w3 = web3.Web3(web3.Web3.HTTPProvider(HTTP_PROVIDER_URL))
     fleek_aws_client = get_fleek_client()
 
     stats_content = get_existing_stats_file_content(fleek_aws_client)
@@ -118,10 +118,19 @@ def main(args):
         # Virtual price has more digits than Number.MAX_SAFE_INTEGER.
         # When the pool initializes, the virtual price is returned as 0 but it's
         # actually effectively 1
-        virtual_price = str(
-            swap.functions.getVirtualPrice().call(block_identifier=next_block_num)
-            or INITIAL_VIRTUAL_PRICE
-        )
+        try:
+            virtual_price = str(
+                swap.functions.getVirtualPrice().call(block_identifier=next_block_num)
+                or INITIAL_VIRTUAL_PRICE
+            )
+        except web3.exceptions.BadFunctionCallOutput as e:
+            logger.error(
+                f"Error calling fn on block {next_block_num}. This is "
+                f"likely due to the contract not having been deployed by"
+                f" this block, moving to the next block: {e}"
+            )
+            next_block_num += ADD_STATS_EVERY_N_BLOCK
+            continue
 
         block_data = w3.eth.getBlock(next_block_num)
         btc_price = get_btc_price_at_timestamp_date(block_data.timestamp)
