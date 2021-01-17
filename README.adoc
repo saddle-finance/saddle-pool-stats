@@ -1,9 +1,15 @@
+= saddle-pool-stats
+
 == Usage
 
 ```lang=bash
 cp .env-dev .env
 ```
-Ask for a team member for missing fields in your .env. 
+
+Ask for a team member for missing fields in your .env. You will need to create
+a new API key on https://app.fleek.co/[Fleek] and use the values for
+`FLEEK_KEY_ID` and `FLEEK_KEY`.
+
 Once you fill in the variables:
 
 ```lang=bash
@@ -11,8 +17,8 @@ pipenv install
 pipenv run python3 record_pool_stats.py
 ```
 
-Delete the pool-stats-dev.json on Fleek as necessary for your development
+Delete the `pool-stats-dev.json` on Fleek as necessary for your development.
 
 == Production
 
-This script runs periodically as a Github action
+This script runs periodically as a Github action.
