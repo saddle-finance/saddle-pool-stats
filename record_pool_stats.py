@@ -5,6 +5,8 @@ import logging
 import os
 import requests
 
+from datetime import datetime
+
 
 import boto3
 import botocore
@@ -36,6 +38,8 @@ BTC_PRICE_IND = 2
 
 
 def get_btc_price_at_timestamp_date(ts):
+    dt = datetime.fromtimestamp(ts)
+    logger.info(f"Fetching price for timestamp: {ts} ({dt})")
     try:
         end_ts = ts
         start_ts = ts - 60 * 60 * 2
