@@ -38,16 +38,18 @@ BTC_PRICE_IND = 2
 def get_btc_price_at_timestamp_date(ts):
     try:
         end_ts = ts
-        start_ts = ts - 60 * 60
+        start_ts = ts - 60 * 60 * 2
         url = (
             f"https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/"
             f"range?vs_currency=usd&from={start_ts}&to={end_ts}"
         )
         price_info = requests.get(url).json()
+        logger.info(f"Fetched price_info: {price_info}")
         prices = price_info["prices"]
         price = int(decimal.Decimal(prices[-1][1]).quantize(decimal.Decimal("1")))
         return price
     except Exception as e:
+
         logger.error(f"Could not fetch btc price at {ts}: {e}")
 
 
