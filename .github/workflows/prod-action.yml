@@ -24,13 +24,13 @@ jobs:
 
       - name: Generate stats and upload
         env:
-          SWAP_CONTRACT_ADDRESS:0xA449CbB5B1D4175B3D92487AC61A834fA4f25DA3
-          DEPLOYMENT_BLOCK:11656943
-          HTTP_PROVIDER_URL:https://eth-mainnet.alchemyapi.io/v2/81vG7yyuGWiFN6Hzu47-MnCIVmSd5MpY
-          ADD_STATS_EVERY_N_BLOCK:60
-          STATS_FILE_PATH:pool-stats.json
-          FLEEK_BUCKET:alphast0rm-team-bucket
-          FLEEK_KEY_ID:${{ secrets.FLEEK_KEY_ID }}
-          FLEEK_KEY:${{ secrets.FLEEK_KEY }}
+          SWAP_CONTRACT_ADDRESS: 0xA449CbB5B1D4175B3D92487AC61A834fA4f25DA3
+          DEPLOYMENT_BLOCK: 11656943
+          HTTP_PROVIDER_URL: https://eth-mainnet.alchemyapi.io/v2/81vG7yyuGWiFN6Hzu47-MnCIVmSd5MpY
+          ADD_STATS_EVERY_N_BLOCK: 60
+          STATS_FILE_PATH: pool-stats.json
+          FLEEK_BUCKET: alphast0rm-team-bucket
+          FLEEK_KEY_ID: ${{ secrets.FLEEK_KEY_ID }}
+          FLEEK_KEY: ${{ secrets.FLEEK_KEY }}
 
         run: pipenv run python record_pool_stats.py
