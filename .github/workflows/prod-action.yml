@@ -2,6 +2,8 @@ name: prod-action
 on:
   schedule:
     - cron:  '*/5 * * * *'
+  workflow_dispatch:
+
 jobs:
   run-pool-stats:
     runs-on: ubuntu-latest
@@ -28,5 +30,7 @@ jobs:
           ADD_STATS_EVERY_N_BLOCK:60
           STATS_FILE_PATH:pool-stats.json
           FLEEK_BUCKET:alphast0rm-team-bucket
+          FLEEK_KEY_ID:${{ secrets.FLEEK_KEY_ID }}
+          FLEEK_KEY:${{ secrets.FLEEK_KEY }}
 
         run: pipenv run python record_pool_stats.py
