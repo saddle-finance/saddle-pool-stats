@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import requests
+import time
 
 from datetime import datetime
 
@@ -30,7 +31,6 @@ INITIAL_VIRTUAL_PRICE = "1000000000000000000"
 SWAP_CONTRACT_ABI_PATH = "Swap.json"
 FLEEK_ENDPOINT = "https://storageapi.fleek.co"
 
-
 # Add timestamp, A, adminfee, swapfee in the future?
 BLOCK_NUMBER_IND = 0
 VIRTUAL_PRICE_IND = 1
@@ -48,7 +48,6 @@ def get_btc_price_at_timestamp_date(ts):
             f"range?vs_currency=usd&from={start_ts}&to={end_ts}"
         )
         price_info = requests.get(url).json()
-        logger.info(f"Fetched price_info: {price_info}")
         prices = price_info["prices"]
         price = int(decimal.Decimal(prices[-1][1]).quantize(decimal.Decimal("1")))
         return price
@@ -82,7 +81,14 @@ def get_fleek_client():
 
 
 def main(args):
-
+    if args.dev:
+        logger.info(
+            "IMPORTANT: Remember to delete the existing file from"
+            f"{FLEEK_BUCKET} bucket when starting to test a fresh env."
+        )
+        logger.info(
+            "Running in dev mode, will generate stats as new blocks are" " mined."
+        )
     try:
         f = open(SWAP_CONTRACT_ABI_PATH)
         swap_contract_artifact = json.loads(f.read())
@@ -117,56 +123,68 @@ def main(args):
         f"Next block number: {next_block_num}, current block: {w3.eth.blockNumber}"
     )
 
-    # w3.eth.blockNumber gets updated dynamically
-    while w3.eth.blockNumber > next_block_num:
-        logger.info(f"Fetching data for block: {next_block_num}")
+    while True:
 
-        # Virtual price has more digits than Number.MAX_SAFE_INTEGER.
-        # When the pool initializes, the virtual price is returned as 0 but it's
-        # actually effectively 1
-        try:
-            virtual_price = str(
-                swap.functions.getVirtualPrice().call(block_identifier=next_block_num)
-                or INITIAL_VIRTUAL_PRICE
+        # w3.eth.blockNumber gets updated dynamically
+        while w3.eth.blockNumber > next_block_num:
+            logger.info(f"Fetching data for block: {next_block_num}")
+
+            # Virtual price has more digits than Number.MAX_SAFE_INTEGER.
+            # When the pool initializes, the virtual price is returned as 0 but it's
+            # actually effectively 1
+            try:
+                virtual_price = str(
+                    swap.functions.getVirtualPrice().call(
+                        block_identifier=next_block_num
+                    )
+                    or INITIAL_VIRTUAL_PRICE
+                )
+            except web3.exceptions.BadFunctionCallOutput as e:
+                logger.error(
+                    f"Error calling fn on block {next_block_num}. This is "
+                    f"likely due to the contract not having been deployed by"
+                    f" this block, moving to the next block: {e}"
+                )
+                next_block_num += ADD_STATS_EVERY_N_BLOCK
+                continue
+
+            block_data = w3.eth.getBlock(next_block_num)
+            btc_price = get_btc_price_at_timestamp_date(block_data.timestamp)
+            if not btc_price:
+                break
+
+            stats_content.append([next_block_num, virtual_price, btc_price])
+
+            # Rewrite the whole object every time, helps recover from where we left off,
+            # if we're regenerating a lot of blocks and script stops due to provider
+            # / rate limiting errors
+            stats_bytes = json.dumps(stats_content, separators=(",", ":")).encode(
+                "utf-8"
             )
-        except web3.exceptions.BadFunctionCallOutput as e:
-            logger.error(
-                f"Error calling fn on block {next_block_num}. This is "
-                f"likely due to the contract not having been deployed by"
-                f" this block, moving to the next block: {e}"
-            )
+            while True:
+                try:
+                    fleek_aws_client.put_object(
+                        Bucket=FLEEK_BUCKET, Key=STATS_FILE_PATH, Body=stats_bytes
+                    )
+                    logger.info(
+                        f"Uploaded cumulative stats to Fleek (latest block: {next_block_num})"
+                    )
+                    break
+                except Exception as e:
+                    logger.error(f"Error uploading stats file: {e}")
+
             next_block_num += ADD_STATS_EVERY_N_BLOCK
-            continue
 
-        block_data = w3.eth.getBlock(next_block_num)
-        btc_price = get_btc_price_at_timestamp_date(block_data.timestamp)
-        if not btc_price:
+        if not args.dev:
             break
 
-        stats_content.append([next_block_num, virtual_price, btc_price])
-
-        # Rewrite the whole object every time, helps recover from where we left off,
-        # if we're regenerating a lot of blocks and script stops due to provider
-        # / rate limiting errors
-        stats_bytes = json.dumps(stats_content, separators=(",", ":")).encode("utf-8")
-        while True:
-            try:
-                fleek_aws_client.put_object(
-                    Bucket=FLEEK_BUCKET, Key=STATS_FILE_PATH, Body=stats_bytes
-                )
-                logger.info(
-                    f"Uploaded cumulative stats to Fleek (latest block: {next_block_num})"
-                )
-                break
-            except Exception as e:
-                logger.error(f"Error uploading stats file: {e}")
-
-        next_block_num += ADD_STATS_EVERY_N_BLOCK
+        time.sleep(1)
 
     logger.info("Done for now.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--dev", action="store_true")
     args = parser.parse_args()
     main(args)
