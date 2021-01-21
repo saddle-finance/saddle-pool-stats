@@ -49,7 +49,6 @@ def main(args):
     w3 = web3.Web3(web3.Web3.HTTPProvider(HTTP_PROVIDER_URL))
     current_block = w3.eth.blockNumber
 
-    logger.info(SWAP_CONTRACT_ADDRESS)
     starting_block = current_block - ETH_BLOCKS_IN_A_DAY
     now = datetime.datetime.now()
     day_ago = datetime.timedelta(days=1)
