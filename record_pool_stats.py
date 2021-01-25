@@ -5,13 +5,11 @@ import logging
 import os
 import requests
 import time
-
 from datetime import datetime
 
-
-import boto3
-import botocore
 import web3
+
+from util import get_fleek_client
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
@@ -68,18 +66,6 @@ def get_existing_stats_file_content(fleek_aws_client):
         return None
 
 
-def get_fleek_client():
-    return boto3.client(
-        service_name="s3",
-        api_version="2006-03-01",
-        aws_access_key_id=FLEEK_KEY_ID,
-        aws_secret_access_key=FLEEK_KEY,
-        endpoint_url=FLEEK_ENDPOINT,
-        region_name="us-east-1",
-        config=botocore.config.Config(s3=dict(addressing_style="path")),
-    )
-
-
 def main(args):
     if args.dev:
         logger.info(
@@ -97,7 +83,7 @@ def main(args):
         logger.error(f"Could not load swap contract ABI: {e}")
 
     w3 = web3.Web3(web3.Web3.HTTPProvider(HTTP_PROVIDER_URL))
-    fleek_aws_client = get_fleek_client()
+    fleek_aws_client = get_fleek_client(FLEEK_KEY_ID, FLEEK_KEY)
 
     stats_content = get_existing_stats_file_content(fleek_aws_client)
     if stats_content is None:
