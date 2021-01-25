@@ -37,8 +37,6 @@ TOKEN_DECIMALS = [
     18,
 ]
 
-event_block_cache = {}
-
 
 def get_day_ago_block_number():
     now = datetime.datetime.now()
