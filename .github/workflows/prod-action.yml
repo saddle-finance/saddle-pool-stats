@@ -25,7 +25,7 @@ jobs:
         env:
           SWAP_CONTRACT_ADDRESS: "0x4f6A43Ad7cba042606dECaCA730d4CE0A57ac62e"
           DEPLOYMENT_BLOCK: 11685572
-          HTTP_PROVIDER_URL: https://eth-mainnet.alchemyapi.io/v2/81vG7yyuGWiFN6Hzu47-MnCIVmSd5MpY
+          HTTP_PROVIDER_URL: https://eth-mainnet.alchemyapi.io/v2/fSPdSsgYr5PfZg2du0EsuheqSN8rQQSY
           ADD_STATS_EVERY_N_BLOCK: 60
           STATS_FILE_PATH: pool-stats.json
           FLEEK_BUCKET: alphast0rm-team-bucket
@@ -52,7 +52,7 @@ jobs:
       - name: Generate daily volume
         env:
           SWAP_CONTRACT_ADDRESS: "0x4f6A43Ad7cba042606dECaCA730d4CE0A57ac62e"
-          HTTP_PROVIDER_URL: https://eth-mainnet.alchemyapi.io/v2/81vG7yyuGWiFN6Hzu47-MnCIVmSd5MpY
+          HTTP_PROVIDER_URL: https://eth-mainnet.alchemyapi.io/v2/fSPdSsgYr5PfZg2du0EsuheqSN8rQQSY
           DAILY_VOL_FILE_PATH: daily-vol.json
           FLEEK_BUCKET: alphast0rm-team-bucket
           FLEEK_KEY_ID: ${{ secrets.FLEEK_KEY_ID }}
