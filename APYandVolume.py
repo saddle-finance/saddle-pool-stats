@@ -8,6 +8,7 @@ class Swap:
         self.volume = 0
         self.name = name
         self.tokenList = tokens
+        self.tlv = 0 # todo get balanceOf each pool using web3 or ethers
 
 # pool addresses (We call them swaps):
 stableSwapAddress = "0x3911f80530595fbd01ab1516ab61255d75aeb066"
@@ -59,6 +60,17 @@ def get24HrVolume(tokenPricesUSD, swaps):
             
             currentPool.volume += float(tokenPrice) * int(tokenAmount)
 
+def getSwapTLVs(swaps):
+    # todo implement this using web3 or ethers, using balanceOf method
+    return
+
+def calculateAPYs(swaps):
+    # todo implement this - for MVP use constant fee? Or pull from thegraph?
+    feePercent = 0.4
+    for _, swap in swaps:
+        swap.apy = feePercent * 0.01 * 365 / swap.tlv
+    return 
+
 def main():
     stableSwapCoins = ["dai", "usd-coin", "tether"]
     btcSwapCoins = ["tbtc", "wrapped-bitcoin", "renbtc", "sbtc"]
@@ -73,10 +85,11 @@ def main():
     tokenPricesUSD = dict()
     getTokenPricesUSD(tokenPricesUSD)
     get24HrVolume(tokenPricesUSD, swaps)
+    #getSwapTLVs(swaps)
 
     # Todo write to json file instead of logging
     for address, swap in swaps.items():
-        print("pool: {} volume: {}".format(swap.name, swap.volume))
+        print("pool: {} volume: {} apy: {}".format(swap.name, swap.volume, swap.apy))
     
 if __name__ == "__main__":
     main()
