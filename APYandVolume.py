@@ -114,13 +114,6 @@ payload = {
   },
 }
 
-# swaps = {
-#     stableSwapAddress: Swap("Stable", stableSwapTokens),
-#     btcSwapAddress: Swap("Btc", btcSwapTokens),
-#     vETH2SwapAddress: Swap("vETH2", vETHSwapTokens)
-# }
-
-
 def getTokenPricesUSD():
     tokenPricesUSD = dict()
     CGTokenNames = ["saddlebtc", "saddleusd", "saddleveth2", "dai", "usd-coin", "tether",  "tbtc", "wrapped-bitcoin", "renbtc", "sbtc", "ethereum"]
@@ -156,14 +149,22 @@ def getGraphData():
   r = requests.post(graphURL, data=json.dumps({"query": swapsDailyVolumeGraphQuery}))
   return r.json()["data"]["swaps"]
 
+btcGraphToChainTokenIdx = [1, 0, 2, 3]
+ethGraphToChainTokenIdx = [1, 0]
+
 def getOneDayVolume(tokenPricesUSD, swaps):
     for swap in swaps:
         for exchange in swap["exchanges"]:
-            boughtTokenAddress = swap["tokens"][int(exchange["boughtId"])]["id"]
+            tokenIdx = int(exchange["boughtId"])
+            if swap["id"] == btcSwapAddress:
+              tokenIdx = btcGraphToChainTokenIdx[tokenIdx]
+            elif swap["id"] == vETH2SwapAddress:
+              tokenIdx = ethGraphToChainTokenIdx[tokenIdx]
+            boughtTokenAddress = swap["tokens"][tokenIdx]["id"]
             boughtTokenCoinGeckoID = tokenAddressToCoinGeckoID[boughtTokenAddress]
             boughtTokenPrice = tokenPricesUSD[boughtTokenCoinGeckoID]
             boughtTokenAmount = exchange["tokensBought"]
-            decimals = int(swap["tokens"][int(exchange["boughtId"])]["decimals"])
+            decimals = int(swap["tokens"][tokenIdx]["decimals"])
             payload[swap["id"]]["oneDayVolume"] += (float(boughtTokenPrice) * int(boughtTokenAmount)) / (10 ** decimals)
 
 def getSwapTLVs(tokenPricesUSD, swaps):
@@ -172,6 +173,10 @@ def getSwapTLVs(tokenPricesUSD, swaps):
         coinGeckoID = tokenAddressToCoinGeckoID[token["id"]]
         priceUSD = tokenPricesUSD[coinGeckoID]
         decimals = int(token["decimals"])
+        if swap["id"] == btcSwapAddress:
+          idx = btcGraphToChainTokenIdx[idx]
+        elif swap["id"] == vETH2SwapAddress:
+          idx = ethGraphToChainTokenIdx[idx]
         balance = int(swap["balances"][idx])
         print("adding {} {} which cost {} and has {} decimals to the swap TVL".format(balance, coinGeckoID, priceUSD, decimals))
         payload[swap["id"]]["TVL"] += (balance * priceUSD) / (10**decimals)
