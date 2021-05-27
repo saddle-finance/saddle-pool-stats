@@ -1,6 +1,18 @@
 import requests
 import json
+import logging
 import time
+import os
+
+from util import get_fleek_client
+
+APY_TVL_VOL_FILE_PATH = os.environ["APY_TVL_VOL_FILE_PATH"]
+FLEEK_KEY_ID = os.environ["FLEEK_KEY_ID"]
+FLEEK_KEY = os.environ["FLEEK_KEY"]
+FLEEK_BUCKET = os.environ["FLEEK_BUCKET"]
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger()
 
 # class Swap:
 #     def __init__(self, name, tokens):
@@ -187,16 +199,33 @@ def calculateAPYs():
         swap["APY"] = (swap["oneDayVolume"] * feePercent * 0.01 * 365) / swap["TVL"]
     return 
 
+def writeToIPFS():
+  fleek_aws_client = get_fleek_client(FLEEK_KEY_ID, FLEEK_KEY)
+
+  payload_bytes = json.dumps(payload).encode("utf-8")
+  
+  try:
+      fleek_aws_client.put_object(
+          Bucket=FLEEK_BUCKET, Key=APY_TVL_VOL_FILE_PATH, Body=payload_bytes
+      )
+      logger.info(
+          f"Uploaded apy/volume/tvl to Fleek"
+      )
+  except Exception as e:
+      logger.error(f"Error uploading file: {e}")
+
 def main():
     tokenPricesUSD = getTokenPricesUSD()
     swapsData = getGraphData()
     getOneDayVolume(tokenPricesUSD, swapsData)
     getSwapTLVs(tokenPricesUSD, swapsData)
     calculateAPYs()
-    # Todo write to json file instead of logging
-    for swapAddress, swap in payload.items():
-        print("pool: {} volume: {} apy: {} tvl: {}".format(swapAddress, swap["oneDayVolume"], swap["APY"], swap["TVL"]))
+    writeToIPFS()
     
+    # for swapAddress, swap in payload.items():
+    #     print("pool: {} volume: {} apy: {} tvl: {}".format(swapAddress, swap["oneDayVolume"], swap["APY"], swap["TVL"]))
+    
+
 if __name__ == "__main__":
     main()
             
