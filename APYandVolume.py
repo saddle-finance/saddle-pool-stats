@@ -14,81 +14,6 @@ FLEEK_BUCKET = os.environ["FLEEK_BUCKET"]
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-# class Swap:
-#     def __init__(self, name, tokens):
-#         self.apy = 0 #TODO calculate I think it's just 0.004 * volume * 365 / TVL
-#         self.oneDayVolume = 0
-#         self.name = name
-#         self.tokenList = tokens
-#         self.tlv = 0 # todo get balanceOf each pool using web3 or ethers
-
-# class Token:
-#     def __init__(self, decimals, symbol, geckoId, name):
-#         self.symbol = symbol
-#         self.name = name
-#         self.geckoId = geckoId
-#         self.decimals = decimals
-
-# BTC_SWAP_TOKEN = Token(
-#   18,
-#   "saddleBTC",
-#   "saddlebtc",
-#   "Saddle TBTC/WBTC/RENBTC/SBTC")
-
-# STABLECOIN_SWAP_TOKEN = Token(
-#   18,
-#   "saddleUSD",
-#   "saddleusd",
-#   "Saddle DAI/USDC/USDT")
-
-# VETH2_SWAP_TOKEN = Token(
-#   18,
-#   "saddleVETH2",
-#   "saddleveth2",
-#   "Saddle WETH/vETH2")
-
-# DAI = Token(18,
-#   "DAI",
-#   "dai",
-#   "Dai")
-# USDC = Token(6,
-#   "USDC",
-#   "usd-coin",
-#   "USDC Coin")
-# USDT = Token(6,
-#   "USDT",
-#   "tether",
-#   "Tether")
-# WBTC = Token(8,
-#   "WBTC",
-#   "wrapped-bitcoin",
-#   "WBTC")
-# TBTC = Token(18,
-#   "TBTC",
-#   "tbtc",
-#   "tBTC")
-# RENBTC = Token(8,
-#   "RENBTC",
-#   "renbtc",
-#   "renBTC")
-# SBTC = Token(18,
-#   "SBTC",
-#   "sbtc",
-#   "sBTC",)
-# VETH2 = Token(18,
-#   "VETH2",
-#   "ethereum",
-#   "vETH2")
-# WETH = Token(18,
-#   "WETH",
-#   "ethereum",
-#   "WETH")
-
-# stableSwapTokens = [DAI, USDC, USDT]
-# btcSwapTokens = [TBTC, WBTC, RENBTC, SBTC]
-# vETHSwapTokens = [WETH, VETH2]
-
-# pool addresses (We call them swaps):
 stableSwapAddress = "0x3911f80530595fbd01ab1516ab61255d75aeb066"
 btcSwapAddress = "0x4f6a43ad7cba042606decaca730d4ce0a57ac62e"
 vETH2SwapAddress = "0xdec2157831d6abc3ec328291119cc91b337272b5"
@@ -107,6 +32,21 @@ tokenAddressToCoinGeckoID = {
   "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".lower(): "ethereum", # eth coins
   "0x898BAD2774EB97cF6b94605677F43b41871410B1".lower(): "ethereum"
 }
+
+tokenAddresses = [
+  "0x76204f8CFE8B95191A3d1CfA59E267EA65e06FAC",
+  "0xC28DF698475dEC994BE00C9C9D8658A548e6304F",
+  "0xe37E2a01feA778BC1717d72Bd9f018B6A6B241D5",
+  "0x6b175474e89094c44da98b954eedeac495271d0f",
+  "0xa0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  "0xdac17f958d2ee523a2206206994597c13d831ec7",
+  "0x8daebade922df735c38c80c7ebd708af50815faa",
+  "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+  "0xeb4c2781e4eba804ce9a9803c67d0893436bb27d",
+  "0xfe18be6b3bd88a2d2a7f928d00292e7a9963cfc6",
+  "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+  "0x898BAD2774EB97cF6b94605677F43b41871410B1",
+]
 
 payload = {
   stableSwapAddress: {
@@ -203,7 +143,7 @@ def writeToIPFS():
   fleek_aws_client = get_fleek_client(FLEEK_KEY_ID, FLEEK_KEY)
 
   payload_bytes = json.dumps(payload).encode("utf-8")
-  
+
   try:
       fleek_aws_client.put_object(
           Bucket=FLEEK_BUCKET, Key=APY_TVL_VOL_FILE_PATH, Body=payload_bytes
