@@ -18,25 +18,7 @@ stableSwapAddress = "0x3911f80530595fbd01ab1516ab61255d75aeb066"
 btcSwapAddress = "0x4f6a43ad7cba042606decaca730d4ce0a57ac62e"
 vETH2SwapAddress = "0xdec2157831d6abc3ec328291119cc91b337272b5"
 
-tokenAddrToCoinGeckoID = {
-    "0x76204f8CFE8B95191A3d1CfA59E267EA65e06FAC".lower(): "saddleusd",
-    "0xC28DF698475dEC994BE00C9C9D8658A548e6304F".lower(): "saddlebtc",
-    "0xe37E2a01feA778BC1717d72Bd9f018B6A6B241D5".lower(): "saddleveth2",
-    "0x6b175474e89094c44da98b954eedeac495271d0f".lower(): "dai",
-    "0xa0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".lower(): "usd-coin",
-    "0xdac17f958d2ee523a2206206994597c13d831ec7".lower(): "tether",
-    "0x8daebade922df735c38c80c7ebd708af50815faa".lower(): "tbtc",
-    "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599".lower(): "wrapped-bitcoin",
-    "0xeb4c2781e4eba804ce9a9803c67d0893436bb27d".lower(): "renbtc",
-    "0xfe18be6b3bd88a2d2a7f928d00292e7a9963cfc6".lower(): "sbtc",
-    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".lower(): "ethereum",
-    "0x898BAD2774EB97cF6b94605677F43b41871410B1".lower(): "ethereum"
-}
-
 tokenAddresses = [
-    "0x76204f8CFE8B95191A3d1CfA59E267EA65e06FAC",
-    "0xC28DF698475dEC994BE00C9C9D8658A548e6304F",
-    "0xe37E2a01feA778BC1717d72Bd9f018B6A6B241D5",
     "0x6b175474e89094c44da98b954eedeac495271d0f",
     "0xa0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
     "0xdac17f958d2ee523a2206206994597c13d831ec7",
@@ -45,7 +27,7 @@ tokenAddresses = [
     "0xeb4c2781e4eba804ce9a9803c67d0893436bb27d",
     "0xfe18be6b3bd88a2d2a7f928d00292e7a9963cfc6",
     "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-    "0x898BAD2774EB97cF6b94605677F43b41871410B1",
+    # "0x898BAD2774EB97cF6b94605677F43b41871410B1", cg doesn't have VETH2 yet
 ]
 
 payload = {
@@ -69,18 +51,24 @@ payload = {
 
 def getTokenPricesUSD():
     tokenPricesUSD = dict()
-    CGTokenNames = ["saddlebtc", "saddleusd", "saddleveth2", "dai", "usd-coin",
-                    "tether",  "tbtc", "wrapped-bitcoin", "renbtc", "sbtc",
-                    "ethereum"]
 
     try:
-        r = requests.get("https://api.coingecko.com/api/v3/simple/price?ids={}&vs_currencies=usd".format(','.join(CGTokenNames)))
+        url = ("https://api.coingecko.com/api/v3/simple/token_price"
+               "/ethereum?contract_addresses={}"
+               "&vs_currencies=usd""".format(','.join(tokenAddresses)))
+        r = requests.get(url)
     except Exception as e:
         logger.error(f"Error getting price data from coinGecko: {e}")
 
-    for token, price in r.json().items():
-        tokenPricesUSD[token] = float(price["usd"])
+    for tokenAddress, price in r.json().items():
+        tokenPricesUSD[tokenAddress] = float(price["usd"])
 
+    # use WETH price for VETH2
+    tokenPricesUSD[
+        "0x898bad2774eb97cf6b94605677f43b41871410b1"  # VETH2
+    ] = tokenPricesUSD[
+        "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".lower()  # WETH
+    ]
     return tokenPricesUSD
 
 
@@ -127,18 +115,18 @@ def getOneDayVolume(tokenPricesUSD, swaps):
             elif swap["id"] == vETH2SwapAddress:
                 tokenIdx = ethGraphToChainTokenIdx[tokenIdx]
             boughtTokenAddress = swap["tokens"][tokenIdx]["id"]
-            boughtTokenCoinGeckoID = tokenAddrToCoinGeckoID[boughtTokenAddress]
-            boughtTokenPrice = tokenPricesUSD[boughtTokenCoinGeckoID]
+            boughtTokenPrice = tokenPricesUSD[boughtTokenAddress]
             boughtTokenAmount = exchange["tokensBought"]
             decimals = int(swap["tokens"][tokenIdx]["decimals"])
-            payload[swap["id"]]["oneDayVolume"] += (float(boughtTokenPrice) * int(boughtTokenAmount)) / (10 ** decimals)
+            payload[swap["id"]]["oneDayVolume"] += (
+                float(boughtTokenPrice) * int(boughtTokenAmount)
+            ) / (10 ** decimals)
 
 
 def getSwapTLVs(tokenPricesUSD, swaps):
     for swap in swaps:
         for idx, token in enumerate(swap["tokens"]):
-            coinGeckoID = tokenAddrToCoinGeckoID[token["id"]]
-            priceUSD = tokenPricesUSD[coinGeckoID]
+            priceUSD = tokenPricesUSD[token["id"]]
             decimals = int(token["decimals"])
             if swap["id"] == btcSwapAddress:
                 idx = btcGraphToChainTokenIdx[idx]
