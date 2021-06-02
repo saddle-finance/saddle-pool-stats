@@ -1,11 +1,11 @@
 name: prod-action
 on:
   schedule:
-    - cron:  '*/5 * * * *'
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
-  run-pool-stats:
+  run-swap-stats:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -21,41 +21,65 @@ jobs:
           pip install pipenv
           pipenv install
 
-      - name: Generate stats and upload
+      - name: Generate daily volume, apy, tvl
         env:
-          SWAP_CONTRACT_ADDRESS: "0x4f6A43Ad7cba042606dECaCA730d4CE0A57ac62e"
-          DEPLOYMENT_BLOCK: 11685572
-          HTTP_PROVIDER_URL: https://eth-mainnet.alchemyapi.io/v2/fSPdSsgYr5PfZg2du0EsuheqSN8rQQSY
-          ADD_STATS_EVERY_N_BLOCK: 60
-          STATS_FILE_PATH: pool-stats.json
+          DAILY_VOL_FILE_PATH: daily-apy-tvl-vol.json
           FLEEK_BUCKET: alphast0rm-team-bucket
           FLEEK_KEY_ID: ${{ secrets.FLEEK_KEY_ID }}
           FLEEK_KEY: ${{ secrets.FLEEK_KEY }}
 
-        run: pipenv run python record_pool_stats.py
-  run-vol-stats:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+        run: pipenv run python APYandVolume.py
+  # run-pool-stats:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v1
-        with:
-          python-version: 3.8
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v1
+  #       with:
+  #         python-version: 3.8
 
-      - name: Install pipenv
-        run: |
-          python -m pip install --upgrade pip
-          pip install pipenv
-          pipenv install
+  #     - name: Install pipenv
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install pipenv
+  #         pipenv install
 
-      - name: Generate daily volume
-        env:
-          SWAP_CONTRACT_ADDRESS: "0x4f6A43Ad7cba042606dECaCA730d4CE0A57ac62e"
-          HTTP_PROVIDER_URL: https://eth-mainnet.alchemyapi.io/v2/fSPdSsgYr5PfZg2du0EsuheqSN8rQQSY
-          DAILY_VOL_FILE_PATH: daily-vol.json
-          FLEEK_BUCKET: alphast0rm-team-bucket
-          FLEEK_KEY_ID: ${{ secrets.FLEEK_KEY_ID }}
-          FLEEK_KEY: ${{ secrets.FLEEK_KEY }}
+  #     - name: Generate stats and upload
+  #       env:
+  #         SWAP_CONTRACT_ADDRESS: "0x4f6A43Ad7cba042606dECaCA730d4CE0A57ac62e"
+  #         DEPLOYMENT_BLOCK: 11685572
+  #         HTTP_PROVIDER_URL: https://eth-mainnet.alchemyapi.io/v2/fSPdSsgYr5PfZg2du0EsuheqSN8rQQSY
+  #         ADD_STATS_EVERY_N_BLOCK: 60
+  #         STATS_FILE_PATH: pool-stats.json
+  #         FLEEK_BUCKET: alphast0rm-team-bucket
+  #         FLEEK_KEY_ID: ${{ secrets.FLEEK_KEY_ID }}
+  #         FLEEK_KEY: ${{ secrets.FLEEK_KEY }}
 
-        run: pipenv run python record_volume.py
+  #       run: pipenv run python record_pool_stats.py
+  # run-vol-stats:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v1
+  #       with:
+  #         python-version: 3.8
+
+  #     - name: Install pipenv
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install pipenv
+  #         pipenv install
+
+  #     - name: Generate daily volume
+  #       env:
+  #         SWAP_CONTRACT_ADDRESS: "0x4f6A43Ad7cba042606dECaCA730d4CE0A57ac62e"
+  #         HTTP_PROVIDER_URL: https://eth-mainnet.alchemyapi.io/v2/fSPdSsgYr5PfZg2du0EsuheqSN8rQQSY
+  #         DAILY_VOL_FILE_PATH: daily-vol.json
+  #         FLEEK_BUCKET: alphast0rm-team-bucket
+  #         FLEEK_KEY_ID: ${{ secrets.FLEEK_KEY_ID }}
+  #         FLEEK_KEY: ${{ secrets.FLEEK_KEY }}
+
+  #       run: pipenv run python record_volume.py
