@@ -3,6 +3,7 @@ import json
 import logging
 import time
 import os
+import sys
 
 from util import get_fleek_client
 
@@ -51,15 +52,21 @@ def getTokenPricesUSD(tokenAddresses):
         r = requests.get(url)
     except Exception as e:
         logger.error(f"Error getting price data from coinGecko: {e}")
+        return
 
     for tokenAddress, price in r.json().items():
-        if price != {}:
+        if price == {}:
+            logger.error("Error getting price data for token: {}".format(
+                tokenAddress
+            ))
+        else:
             tokenPricesUSD[tokenAddress] = float(price["usd"])
-
     # use WETH price for VETH2
-    tokenPricesUSD[VETH2TokenAddress] = tokenPricesUSD[WETHTokenAddress]
-
-    return tokenPricesUSD
+    if WETHTokenAddress in tokenPricesUSD:
+        tokenPricesUSD[VETH2TokenAddress] = tokenPricesUSD[WETHTokenAddress]
+        return tokenPricesUSD
+    else:
+        return
 
 
 def getGraphData():
@@ -105,7 +112,13 @@ def getOneDayVolume(tokenPricesUSD, swaps):
             elif swap["id"] == vETH2SwapAddress:
                 tokenIdx = ethGraphToChainTokenIdx[tokenIdx]
             boughtTokenAddress = swap["tokens"][tokenIdx]["id"]
-            boughtTokenPrice = tokenPricesUSD[boughtTokenAddress]
+            if boughtTokenAddress in tokenPricesUSD:
+                boughtTokenPrice = tokenPricesUSD[boughtTokenAddress]
+            else:
+                sys.exit("Price missing for token {}, exiting.".format(
+                    boughtTokenAddress
+                ))
+
             boughtTokenAmount = exchange["tokensBought"]
             decimals = int(swap["tokens"][tokenIdx]["decimals"])
             payload[swap["id"]]["oneDayVolume"] += (
