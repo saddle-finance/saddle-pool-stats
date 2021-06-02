@@ -7,7 +7,7 @@ import sys
 
 from util import get_fleek_client
 
-DAILY_VOL_FILE_PATH = os.environ["DAILY_VOL_FILE_PATH"]
+SWAP_STATS_FILE_PATH = os.environ["SWAP_STATS_FILE_PATH"]
 FLEEK_KEY_ID = os.environ["FLEEK_KEY_ID"]
 FLEEK_KEY = os.environ["FLEEK_KEY"]
 FLEEK_BUCKET = os.environ["FLEEK_BUCKET"]
@@ -153,7 +153,7 @@ def writeToIPFS():
 
     try:
         fleek_aws_client.put_object(
-            Bucket=FLEEK_BUCKET, Key=DAILY_VOL_FILE_PATH, Body=payload_bytes
+            Bucket=FLEEK_BUCKET, Key=SWAP_STATS_FILE_PATH, Body=payload_bytes
         )
         logger.info(
             "Uploaded apy/volume/tvl to Fleek"

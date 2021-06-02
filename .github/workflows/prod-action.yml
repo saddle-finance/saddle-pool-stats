@@ -23,7 +23,7 @@ jobs:
 
       - name: Generate daily volume, apy, tvl
         env:
-          DAILY_VOL_FILE_PATH: daily-apy-tvl-vol.json
+          SWAP_STATS_FILE_PATH: swap-stats.json
           FLEEK_BUCKET: alphast0rm-team-bucket
           FLEEK_KEY_ID: ${{ secrets.FLEEK_KEY_ID }}
           FLEEK_KEY: ${{ secrets.FLEEK_KEY }}
