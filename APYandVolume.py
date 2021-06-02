@@ -18,17 +18,9 @@ stableSwapAddress = "0x3911f80530595fbd01ab1516ab61255d75aeb066"
 btcSwapAddress = "0x4f6a43ad7cba042606decaca730d4ce0a57ac62e"
 vETH2SwapAddress = "0xdec2157831d6abc3ec328291119cc91b337272b5"
 
-tokenAddresses = [
-    "0x6b175474e89094c44da98b954eedeac495271d0f",
-    "0xa0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-    "0xdac17f958d2ee523a2206206994597c13d831ec7",
-    "0x8daebade922df735c38c80c7ebd708af50815faa",
-    "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
-    "0xeb4c2781e4eba804ce9a9803c67d0893436bb27d",
-    "0xfe18be6b3bd88a2d2a7f928d00292e7a9963cfc6",
-    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-    # "0x898BAD2774EB97cF6b94605677F43b41871410B1", cg doesn't have VETH2 yet
-]
+# coingecko api accepts case insensitive but returns lowercase addresses
+VETH2TokenAddress = "0x898BAD2774EB97cF6b94605677F43b41871410B1".lower()
+WETHTokenAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".lower()
 
 payload = {
     stableSwapAddress: {
@@ -49,7 +41,7 @@ payload = {
 }
 
 
-def getTokenPricesUSD():
+def getTokenPricesUSD(tokenAddresses):
     tokenPricesUSD = dict()
 
     try:
@@ -61,14 +53,12 @@ def getTokenPricesUSD():
         logger.error(f"Error getting price data from coinGecko: {e}")
 
     for tokenAddress, price in r.json().items():
-        tokenPricesUSD[tokenAddress] = float(price["usd"])
+        if price != {}:
+            tokenPricesUSD[tokenAddress] = float(price["usd"])
 
     # use WETH price for VETH2
-    tokenPricesUSD[
-        "0x898bad2774eb97cf6b94605677f43b41871410b1"  # VETH2
-    ] = tokenPricesUSD[
-        "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".lower()  # WETH
-    ]
+    tokenPricesUSD[VETH2TokenAddress] = tokenPricesUSD[WETHTokenAddress]
+
     return tokenPricesUSD
 
 
@@ -159,12 +149,21 @@ def writeToIPFS():
         logger.error(f"Error uploading file: {e}")
 
 
+def getTokenAddresses(swaps):
+    tokenAddresses = list()
+    for swap in swaps:
+        for token in swap["tokens"]:
+            tokenAddresses.append(token["id"].lower())
+    return tokenAddresses
+
+
 def main():
-    tokenPricesUSD = getTokenPricesUSD()
-    if tokenPricesUSD is None:
-        return
     swapsData = getGraphData()
     if swapsData is None:
+        return
+    tokenAddresses = getTokenAddresses(swapsData)
+    tokenPricesUSD = getTokenPricesUSD(tokenAddresses)
+    if tokenPricesUSD is None:
         return
     getOneDayVolume(tokenPricesUSD, swapsData)
     getSwapTLVs(tokenPricesUSD, swapsData)
