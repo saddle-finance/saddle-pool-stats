@@ -4,8 +4,10 @@ import logging
 import time
 import os
 import sys
-
+from dotenv import load_dotenv
 from util import get_fleek_client
+
+load_dotenv()
 
 SWAP_STATS_FILE_PATH = os.environ["SWAP_STATS_FILE_PATH"]
 FLEEK_KEY_ID = os.environ["FLEEK_KEY_ID"]
@@ -23,26 +25,15 @@ vETH2SwapAddress = "0xdec2157831d6abc3ec328291119cc91b337272b5"
 VETH2TokenAddress = "0x898BAD2774EB97cF6b94605677F43b41871410B1".lower()
 WETHTokenAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".lower()
 
-payload = {
-    stableSwapAddress: {
-        "oneDayVolume": 0,
-        "APY": 0,
-        "TVL": 0,
-    },
-    btcSwapAddress: {
-        "oneDayVolume": 0,
-        "APY": 0,
-        "TVL": 0,
-    },
-    vETH2SwapAddress: {
-        "oneDayVolume": 0,
-        "APY": 0,
-        "TVL": 0,
-    },
+payload = {}
+EMPTY_PAYLOAD_ITEM = {
+    "oneDayVolume": 0,
+    "APY": 0,
+    "TVL": 0,
 }
 
 
-def getTokenPricesUSD(tokenAddresses):
+def get_token_prices_usd(tokenAddresses):
     tokenPricesUSD = dict()
 
     try:
@@ -69,7 +60,7 @@ def getTokenPricesUSD(tokenAddresses):
         return
 
 
-def getGraphData():
+def get_graph_data():
     graphURL = "https://api.thegraph.com/subgraphs/name/saddle-finance/saddle"
     yesterday = int(time.time()) - 3600*24
     swapsDailyVolumeGraphQuery = """{{
@@ -103,7 +94,7 @@ btcGraphToChainTokenIdx = [1, 0, 2, 3]
 ethGraphToChainTokenIdx = [1, 0]
 
 
-def getOneDayVolume(tokenPricesUSD, swaps):
+def get_one_day_volume(tokenPricesUSD, swaps):
     for swap in swaps:
         for exchange in swap["exchanges"]:
             tokenIdx = int(exchange["boughtId"])
@@ -121,12 +112,13 @@ def getOneDayVolume(tokenPricesUSD, swaps):
 
             boughtTokenAmount = exchange["tokensBought"]
             decimals = int(swap["tokens"][tokenIdx]["decimals"])
+            payload.setdefault(swap["id"], dict(EMPTY_PAYLOAD_ITEM))
             payload[swap["id"]]["oneDayVolume"] += (
                 float(boughtTokenPrice) * int(boughtTokenAmount)
             ) / (10 ** decimals)
 
 
-def getSwapTLVs(tokenPricesUSD, swaps):
+def get_swap_tvls(tokenPricesUSD, swaps):
     for swap in swaps:
         for idx, token in enumerate(swap["tokens"]):
             priceUSD = tokenPricesUSD[token["id"]]
@@ -136,17 +128,18 @@ def getSwapTLVs(tokenPricesUSD, swaps):
             elif swap["id"] == vETH2SwapAddress:
                 idx = ethGraphToChainTokenIdx[idx]
             balance = int(swap["balances"][idx])
+            payload.setdefault(swap["id"], dict(EMPTY_PAYLOAD_ITEM))
             payload[swap["id"]]["TVL"] += (balance * priceUSD) / (10**decimals)
 
 
-def calculateAPYs():
+def calculate_apys():
     feePercent = 0.0004
     for _, swap in payload.items():
         swap["APY"] = (swap["oneDayVolume"] * feePercent * 365) / swap["TVL"]
     return
 
 
-def writeToIPFS():
+def write_to_ipfs():
     fleek_aws_client = get_fleek_client(FLEEK_KEY_ID, FLEEK_KEY)
 
     payload_bytes = json.dumps(payload).encode("utf-8")
@@ -162,7 +155,7 @@ def writeToIPFS():
         logger.error(f"Error uploading file: {e}")
 
 
-def getTokenAddresses(swaps):
+def get_token_addresses(swaps):
     tokenAddresses = list()
     for swap in swaps:
         for token in swap["tokens"]:
@@ -171,17 +164,17 @@ def getTokenAddresses(swaps):
 
 
 def main():
-    swapsData = getGraphData()
+    swapsData = get_graph_data()
     if swapsData is None:
         return
-    tokenAddresses = getTokenAddresses(swapsData)
-    tokenPricesUSD = getTokenPricesUSD(tokenAddresses)
+    tokenAddresses = get_token_addresses(swapsData)
+    tokenPricesUSD = get_token_prices_usd(tokenAddresses)
     if tokenPricesUSD is None:
         return
-    getOneDayVolume(tokenPricesUSD, swapsData)
-    getSwapTLVs(tokenPricesUSD, swapsData)
-    calculateAPYs()
-    writeToIPFS()
+    get_one_day_volume(tokenPricesUSD, swapsData)
+    get_swap_tvls(tokenPricesUSD, swapsData)
+    calculate_apys()
+    write_to_ipfs()
 
 
 if __name__ == "__main__":
