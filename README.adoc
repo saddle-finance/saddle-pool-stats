@@ -14,7 +14,7 @@ Once you fill in the variables:
 
 ```lang=bash
 pipenv install
-pipenv run python3 record_pool_stats.py
+pipenv run python3 calc_apy_and_volume.py
 ```
 
 Delete the `pool-stats-dev.json` on Fleek as necessary for your development.
