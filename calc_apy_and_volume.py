@@ -72,7 +72,7 @@ def get_graph_data():
               name
               decimals
             }}
-            exchanges(timestamp_gte: {}) {{
+            exchanges(where: {{timestamp_gte: {}}}) {{
             boughtId
             tokensBought
             soldId
