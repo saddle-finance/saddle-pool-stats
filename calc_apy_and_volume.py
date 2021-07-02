@@ -73,10 +73,10 @@ def get_graph_data():
               decimals
             }}
             exchanges(where: {{timestamp_gte: {}}}) {{
-            boughtId
-            tokensBought
-            soldId
-            tokensSold
+                boughtId
+                tokensBought
+                soldId
+                tokensSold
             }}
         }}
         }}""".format(yesterday)
@@ -135,7 +135,8 @@ def get_swap_tvls(tokenPricesUSD, swaps):
 def calculate_apys():
     feePercent = 0.0004
     for _, swap in payload.items():
-        swap["APY"] = (swap["oneDayVolume"] * feePercent * 365) / swap["TVL"]
+        swap["APY"] = ((1 + (feePercent * swap["oneDayVolume"] / swap["TVL"])) ** 365) - 1 # APY
+        # swap["APY"] = (swap["oneDayVolume"] * feePercent * 365) / swap["TVL"] # APR
     return
 
 
