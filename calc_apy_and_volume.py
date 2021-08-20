@@ -24,6 +24,7 @@ vETH2SwapAddress = "0xdec2157831d6abc3ec328291119cc91b337272b5"
 # coingecko api accepts case insensitive but returns lowercase addresses
 VETH2TokenAddress = "0x898BAD2774EB97cF6b94605677F43b41871410B1".lower()
 WETHTokenAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".lower()
+USDv2LPTokenAddress  = "0x5f86558387293b6009d7896A61fcc86C17808D62".lower()
 
 payload = {}
 EMPTY_PAYLOAD_ITEM = {
@@ -52,6 +53,8 @@ def get_token_prices_usd(tokenAddresses):
             ))
         else:
             tokenPricesUSD[tokenAddress] = float(price["usd"])
+    # hardcode 1 USD as the price for USDv2 LP tokens
+    tokenPricesUSD[USDv2LPTokenAddress] = 1
     # use WETH price for VETH2
     if WETHTokenAddress in tokenPricesUSD:
         tokenPricesUSD[VETH2TokenAddress] = tokenPricesUSD[WETHTokenAddress]
@@ -169,7 +172,9 @@ def main():
     if swapsData is None:
         return
     tokenAddresses = get_token_addresses(swapsData)
+    print("Using token addresses: {}".format(tokenAddresses))
     tokenPricesUSD = get_token_prices_usd(tokenAddresses)
+    print("Using token prices: {}".format(tokenPricesUSD))
     if tokenPricesUSD is None:
         return
     get_one_day_volume(tokenPricesUSD, swapsData)
