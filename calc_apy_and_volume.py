@@ -24,7 +24,10 @@ vETH2SwapAddress = "0xdec2157831d6abc3ec328291119cc91b337272b5"
 # coingecko api accepts case insensitive but returns lowercase addresses
 VETH2TokenAddress = "0x898BAD2774EB97cF6b94605677F43b41871410B1".lower()
 WETHTokenAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".lower()
-USDv2LPTokenAddress  = "0x5f86558387293b6009d7896A61fcc86C17808D62".lower()
+WBTCTokenAddress = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599".lower()
+TBTCv2TokenAddress = "0x18084fba666a33d37592fa2633fd49a74dd93a88".lower()
+USDv2LPTokenAddress = "0x5f86558387293b6009d7896A61fcc86C17808D62".lower()
+BTCv2LPTokenAddress = "0xF32E91464ca18fc156aB97a697D6f8ae66Cd21a3".lower()
 
 payload = {}
 EMPTY_PAYLOAD_ITEM = {
@@ -55,6 +58,11 @@ def get_token_prices_usd(tokenAddresses):
             tokenPricesUSD[tokenAddress] = float(price["usd"])
     # hardcode 1 USD as the price for USDv2 LP tokens
     tokenPricesUSD[USDv2LPTokenAddress] = 1
+    # hardcode 1 WBTC as the price for BTCv2 LP tokens
+    tokenPricesUSD[BTCv2LPTokenAddress] = tokenPricesUSD[WBTCTokenAddress]
+    # hardcode 1 WBTC as the price for TBTCv2
+    # TODO: remove once coingecko has the correct price
+    tokenPricesUSD[TBTCv2TokenAddress] = tokenPricesUSD[WBTCTokenAddress]
     # use WETH price for VETH2
     if WETHTokenAddress in tokenPricesUSD:
         tokenPricesUSD[VETH2TokenAddress] = tokenPricesUSD[WETHTokenAddress]
