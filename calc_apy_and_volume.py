@@ -107,13 +107,20 @@ ethGraphToChainTokenIdx = [1, 0]
 
 def get_one_day_volume(tokenPricesUSD, swaps):
     for swap in swaps:
+        print("Processing {}".format(swap))
         for exchange in swap["exchanges"]:
             tokenIdx = int(exchange["boughtId"])
             if swap["id"] == btcSwapAddress:
                 tokenIdx = btcGraphToChainTokenIdx[tokenIdx]
             elif swap["id"] == vETH2SwapAddress:
                 tokenIdx = ethGraphToChainTokenIdx[tokenIdx]
-            boughtTokenAddress = swap["tokens"][tokenIdx]["id"]
+            print("Swap token idx: {}".format(tokenIdx))
+            try:
+                boughtTokenAddress = swap["tokens"][tokenIdx]["id"]
+            # for metapools fallback to using the first token to calculate price
+            except IndexError:
+                tokenIdx = 0
+                boughtTokenAddress = swap["tokens"][tokenIdx]["id"]
             if boughtTokenAddress in tokenPricesUSD:
                 boughtTokenPrice = tokenPricesUSD[boughtTokenAddress]
             else:
