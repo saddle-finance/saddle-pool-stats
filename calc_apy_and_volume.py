@@ -6,6 +6,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from util import get_fleek_client
+from multicall import Call, Multicall
 
 load_dotenv()
 
@@ -76,10 +77,10 @@ def get_graph_data():
     yesterday = int(time.time()) - 3600*24
     swapsDailyVolumeGraphQuery = """{{
         swaps {{
-            id
+            address
             balances
             tokens {{
-              id
+              address
               name
               decimals
             }}
@@ -110,17 +111,17 @@ def get_one_day_volume(tokenPricesUSD, swaps):
         print("Processing {}".format(swap))
         for exchange in swap["exchanges"]:
             tokenIdx = int(exchange["boughtId"])
-            if swap["id"] == btcSwapAddress:
+            if swap["address"] == btcSwapAddress:
                 tokenIdx = btcGraphToChainTokenIdx[tokenIdx]
-            elif swap["id"] == vETH2SwapAddress:
+            elif swap["address"] == vETH2SwapAddress:
                 tokenIdx = ethGraphToChainTokenIdx[tokenIdx]
             print("Swap token idx: {}".format(tokenIdx))
             try:
-                boughtTokenAddress = swap["tokens"][tokenIdx]["id"]
+                boughtTokenAddress = swap["tokens"][tokenIdx]["address"]
             # for metapools fallback to using the first token to calculate price
             except IndexError:
                 tokenIdx = 0
-                boughtTokenAddress = swap["tokens"][tokenIdx]["id"]
+                boughtTokenAddress = swap["tokens"][tokenIdx]["address"]
             if boughtTokenAddress in tokenPricesUSD:
                 boughtTokenPrice = tokenPricesUSD[boughtTokenAddress]
             else:
@@ -130,8 +131,8 @@ def get_one_day_volume(tokenPricesUSD, swaps):
 
             boughtTokenAmount = exchange["tokensBought"]
             decimals = int(swap["tokens"][tokenIdx]["decimals"])
-            payload.setdefault(swap["id"], dict(EMPTY_PAYLOAD_ITEM))
-            payload[swap["id"]]["oneDayVolume"] += (
+            payload.setdefault(swap["address"], dict(EMPTY_PAYLOAD_ITEM))
+            payload[swap["address"]]["oneDayVolume"] += (
                 float(boughtTokenPrice) * int(boughtTokenAmount)
             ) / (10 ** decimals)
 
@@ -139,15 +140,15 @@ def get_one_day_volume(tokenPricesUSD, swaps):
 def get_swap_tvls(tokenPricesUSD, swaps):
     for swap in swaps:
         for idx, token in enumerate(swap["tokens"]):
-            priceUSD = tokenPricesUSD[token["id"]]
+            priceUSD = tokenPricesUSD[token["address"]]
             decimals = int(token["decimals"])
-            if swap["id"] == btcSwapAddress:
+            if swap["address"] == btcSwapAddress:
                 idx = btcGraphToChainTokenIdx[idx]
-            elif swap["id"] == vETH2SwapAddress:
+            elif swap["address"] == vETH2SwapAddress:
                 idx = ethGraphToChainTokenIdx[idx]
             balance = int(swap["balances"][idx])
-            payload.setdefault(swap["id"], dict(EMPTY_PAYLOAD_ITEM))
-            payload[swap["id"]]["TVL"] += (balance * priceUSD) / (10**decimals)
+            payload.setdefault(swap["address"], dict(EMPTY_PAYLOAD_ITEM))
+            payload[swap["address"]]["TVL"] += (balance * priceUSD) / (10**decimals)
 
 
 def calculate_apys():
@@ -178,7 +179,7 @@ def get_token_addresses(swaps):
     tokenAddresses = list()
     for swap in swaps:
         for token in swap["tokens"]:
-            tokenAddresses.append(token["id"].lower())
+            tokenAddresses.append(token["address"].lower())
     return tokenAddresses
 
 
