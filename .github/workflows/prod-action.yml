@@ -27,6 +27,7 @@ jobs:
           FLEEK_BUCKET: alphast0rm-team-bucket
           FLEEK_KEY_ID: ${{ secrets.FLEEK_KEY_ID }}
           FLEEK_KEY: ${{ secrets.FLEEK_KEY }}
+          HTTP_PROVIDER_URL: ${{ secrets.HTTP_PROVIDER_URL }}
 
         run: pipenv run python calc_apy_and_volume.py
   # run-pool-stats:
