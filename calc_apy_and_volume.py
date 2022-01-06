@@ -20,9 +20,8 @@ HTTP_PROVIDER_URL = os.environ["HTTP_PROVIDER_URL"]
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-stableSwapAddress = "0x3911f80530595fbd01ab1516ab61255d75aeb066"
-btcSwapAddress = "0x4f6a43ad7cba042606decaca730d4ce0a57ac62e"
-vETH2SwapAddress = "0xdec2157831d6abc3ec328291119cc91b337272b5"
+usdV2SwapAddress = "0xaCb83E0633d6605c5001e2Ab59EF3C745547C8C7".lower()
+btcV2SwapAddress = "0xdf3309771d2BF82cb2B6C56F9f5365C8bD97c4f2".lower()
 
 # coingecko api accepts case insensitive but returns lowercase addresses
 WETHTokenAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".lower()
@@ -66,6 +65,15 @@ def get_pool_token_positions(swaps):
         logger.error(f"Error getting pool token positions: {e}")
         return
 
+def get_token_type_by_name(name):
+    if "usd" in name.lower():
+        return "USD"
+    elif "btc" in name.lower():
+        return "BTC"
+    elif "eth" in name.lower():
+        return "ETH"
+    else:
+        return "USD" # frax etc
 
 def get_token_prices_usd(tokens):
     tokenAddresses = tokens.keys()
@@ -89,14 +97,13 @@ def get_token_prices_usd(tokens):
             tokenPricesUSD[tokenAddress] = float(price["usd"])
     for tokenAddress, name in tokens.items():
         if tokenAddress not in tokenPricesUSD:
-            if "usd" in name.lower():
+            token_type = get_token_type_by_name(name)
+            if token_type == "USD":
                 tokenPricesUSD[tokenAddress] = 1
-            elif "btc" in name.lower():
+            elif token_type == "BTC":
                 tokenPricesUSD[tokenAddress] = tokenPricesUSD[WBTCTokenAddress]
-            elif "eth" in name.lower():
+            elif token_type == "ETH":
                 tokenPricesUSD[tokenAddress] = tokenPricesUSD[WETHTokenAddress]
-            else:
-                tokenPricesUSD[tokenAddress] = 1
     return tokenPricesUSD
 
 
@@ -113,6 +120,7 @@ def get_graph_data():
               decimals
             }}
             exchanges(where: {{timestamp_gte: {}}}, orderBy: tokensBought, orderDirection: desc) {{
+                __typename
                 boughtId
                 tokensBought
                 soldId
@@ -133,32 +141,52 @@ def get_graph_data():
 
 def get_one_day_volume(tokenPricesUSD, swaps, poolTokenPositions):
     for swap in swaps:
-        print("\nProcessing {} volume".format(swap["address"]))
+        token_names = [token["name"] for token in swap["tokens"]]
+        token_positions = poolTokenPositions[swap["address"]]
+        sorted_token_names = [x[1] for x in sorted(zip(token_positions, token_names))]
+        pool_name = ", ".join(sorted_token_names)
+        print(f"\n{swap['address']} Volume [{pool_name}]")
+        pool_type = get_token_type_by_name(swap["tokens"][0]["name"])
+        token_idx = None
+        bought_token_address = None
+        decimals = None
+        bought_token_price = None
         for exchange in swap["exchanges"]:
-            try:
-                tokenIdx = int(exchange["boughtId"])
-                tokenIdx = poolTokenPositions[swap["address"]][tokenIdx]
-                boughtTokenAddress = swap["tokens"][tokenIdx]["address"]
-            # for metapools fallback to using the first token to calculate price
-            except IndexError:
-                tokenIdx = 0
-                boughtTokenAddress = swap["tokens"][tokenIdx]["address"]
-            if boughtTokenAddress in tokenPricesUSD:
-                boughtTokenPrice = tokenPricesUSD[boughtTokenAddress]
+            bought_idx = int(exchange["boughtId"])
+            if exchange["__typename"] == "TokenExchange":
+                token_idx = poolTokenPositions[swap["address"]][bought_idx]
+                bought_token_address = swap["tokens"][token_idx]["address"]
+                decimals = int(swap["tokens"][token_idx]["decimals"])
+            else: # case for TokenExchangeUnderlying
+                underlying_pool_address = None
+                if pool_type == "USD":
+                    underlying_pool_address = usdV2SwapAddress
+                elif pool_type == "BTC":
+                    underlying_pool_address = btcV2SwapAddress
+                else:
+                    sys.exit("Unsupported pool type")
+                underlying_swap = [swap for swap in swaps if swap["address"] == underlying_pool_address][0]
+                if bought_idx == 0:
+                    bought_token_address = swap["tokens"][0]["address"]
+                    decimals = int(swap["tokens"][0]["decimals"])
+                else:
+                    token_idx = poolTokenPositions[underlying_pool_address][bought_idx - 1]
+                    bought_token_address = underlying_swap["tokens"][token_idx]["address"]
+                    decimals = int(underlying_swap["tokens"][token_idx]["decimals"])
+            if bought_token_address in tokenPricesUSD:
+                bought_token_price = tokenPricesUSD[bought_token_address]
             else:
-                sys.exit("Price missing for token {}, exiting.".format(
-                    boughtTokenAddress
-                ))
+                sys.exit(f"Price missing for token {bought_token_address}, exiting.")
 
-            boughtTokenAmount = exchange["tokensBought"]
-            decimals = int(swap["tokens"][tokenIdx]["decimals"])
+            bought_token_amount = exchange["tokensBought"]
             payload.setdefault(swap["address"], dict(EMPTY_PAYLOAD_ITEM))
             parsed_amount = (
-                float(boughtTokenPrice) * int(boughtTokenAmount)
+                float(bought_token_price) * int(bought_token_amount)
             ) / (10 ** decimals)
             payload[swap["address"]]["oneDayVolume"] += parsed_amount
             txn = exchange["transaction"]
-            print(f"{txn} swapped ${int(parsed_amount):>12,d}")
+            dollar_amount = f"${int(parsed_amount):,}"
+            print(f"{txn} {dollar_amount:>12}")
 
 
 def get_swap_tvls(tokenPricesUSD, swaps, poolTokenPositions):
@@ -211,7 +239,7 @@ def main():
     pool_token_positions = get_pool_token_positions(swapsData)
     tokenAddresses = get_token_addresses(swapsData)
     print("\n/********** Token Addresses **********/")
-    print("\n".join(list(map(lambda pair: f"{pair[1]:<25} {pair[0]}", tokenAddresses.items()))))
+    print("\n".join(list(map(lambda pair: f"{pair[1]:<25} {pair[0]}", sorted(tokenAddresses.items(), key=lambda pair: pair[1].lower())))))
 
     tokenPricesUSD = get_token_prices_usd(tokenAddresses)
     print("\n/********** Token Prices **********/")
