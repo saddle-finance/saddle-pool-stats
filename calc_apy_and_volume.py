@@ -16,6 +16,7 @@ FLEEK_KEY_ID = os.environ["FLEEK_KEY_ID"]
 FLEEK_KEY = os.environ["FLEEK_KEY"]
 FLEEK_BUCKET = os.environ["FLEEK_BUCKET"]
 HTTP_PROVIDER_URL = os.environ["HTTP_PROVIDER_URL"]
+NUM_DAYS_TO_AVG = 2
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
@@ -109,7 +110,7 @@ def get_token_prices_usd(tokens):
 
 def get_graph_data():
     graphURL = "https://api.thegraph.com/subgraphs/name/saddle-finance/saddle"
-    yesterday = int(time.time()) - 3600*24
+    yesterday = int(time.time()) - 3600*24*NUM_DAYS_TO_AVG
     swapsDailyVolumeGraphQuery = """{{
         swaps {{
             address
@@ -141,12 +142,17 @@ def get_graph_data():
 
 def get_one_day_volume(tokenPricesUSD, swaps, poolTokenPositions):
     for swap in swaps:
+        payload.setdefault(swap["address"], dict(EMPTY_PAYLOAD_ITEM))
+
+        # assemble to pool name for printing
         token_names = [token["name"] for token in swap["tokens"]]
         token_positions = poolTokenPositions[swap["address"]]
         sorted_token_names = [x[1] for x in sorted(zip(token_positions, token_names))]
         pool_name = ", ".join(sorted_token_names)
         print(f"\n{swap['address']} Volume [{pool_name}]")
+
         pool_type = get_token_type_by_name(swap["tokens"][0]["name"])
+
         token_idx = None
         bought_token_address = None
         decimals = None
@@ -179,14 +185,16 @@ def get_one_day_volume(tokenPricesUSD, swaps, poolTokenPositions):
                 sys.exit(f"Price missing for token {bought_token_address}, exiting.")
 
             bought_token_amount = exchange["tokensBought"]
-            payload.setdefault(swap["address"], dict(EMPTY_PAYLOAD_ITEM))
             parsed_amount = (
                 float(bought_token_price) * int(bought_token_amount)
             ) / (10 ** decimals)
             payload[swap["address"]]["oneDayVolume"] += parsed_amount
             txn = exchange["transaction"]
             dollar_amount = f"${int(parsed_amount):,}"
-            print(f"{txn} {dollar_amount:>12}")
+            print(f"{txn} {dollar_amount:>14}")
+        sum_amount = f"${payload[swap['address']]['oneDayVolume']:,.0f}"
+        print(f"{'Sum':>66} {sum_amount:>14}")
+        payload[swap["address"]]["oneDayVolume"] /= NUM_DAYS_TO_AVG
 
 
 def get_swap_tvls(tokenPricesUSD, swaps, poolTokenPositions):
@@ -246,11 +254,11 @@ def main():
     print("\n".join(list(map(lambda pair: f"{tokenAddresses[pair[0]]:<25} {pair[1]:>10,.3f}", sorted(tokenPricesUSD.items(), key=lambda pair: pair[1])))))
     if tokenPricesUSD is None:
         return
-    print("\n/********** Exchanges **********/")
+    print(f"\n/********** Exchanges of {NUM_DAYS_TO_AVG} Days **********/")
     get_one_day_volume(tokenPricesUSD, swapsData, pool_token_positions)
     get_swap_tvls(tokenPricesUSD, swapsData, pool_token_positions)    
     calculate_apys()
-    print("\n/********** Final Result **********/")
+    print(f"\n/********** Final Result (avg of {NUM_DAYS_TO_AVG} days) **********/")
     print(f"{'Address':<50} {'APY':<10} {'Volume':<10} {'TVL':<13}")
     for address, data in sorted(payload.items(), key=lambda pair: pair[1]["TVL"], reverse=True):
         print(f"{address:<50} {data['APY']:<10.4f} {int(data['oneDayVolume']):>10,d} {int(data['TVL']):>13,d}")
