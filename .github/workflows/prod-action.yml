@@ -30,6 +30,7 @@ jobs:
           FLEEK_KEY_ID: ${{ secrets.FLEEK_KEY_ID }}
           FLEEK_KEY: ${{ secrets.FLEEK_KEY }}
           HTTP_PROVIDER_URL: ${{ secrets.HTTP_PROVIDER_URL }}
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
 
         run: pipenv run python calc_apy_and_volume.py
   # run-pool-stats:
