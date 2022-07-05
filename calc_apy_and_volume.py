@@ -184,7 +184,7 @@ def calculate_apys(payload, graph_data):
 
     for key, swap in payload.items():
         fee_pct = swap_fees[key]
-        swap["APY"] = ((1 + (fee_pct * swap["oneDayVolume"] / swap["TVL"])) ** 365) - 1 # APY
+        swap["APY"] = 0 if swap["TVL"] == 0 else ((1 + (fee_pct * swap["oneDayVolume"] / swap["TVL"])) ** 365) - 1 # APY
     return payload
 
 
