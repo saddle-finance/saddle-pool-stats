@@ -15,11 +15,27 @@ SWAP_STATS_FILE_PATH = os.environ["SWAP_STATS_FILE_PATH"]
 FLEEK_KEY_ID = os.environ["FLEEK_KEY_ID"]
 FLEEK_KEY = os.environ["FLEEK_KEY"]
 FLEEK_BUCKET = os.environ["FLEEK_BUCKET"]
-HTTP_PROVIDER_URL = os.environ["HTTP_PROVIDER_URL"]
+ALCHEMY_API_KEY = os.environ["ALCHEMY_API_KEY"]
 NUM_DAYS_TO_AVG = 2
+def identity(x):
+    return x
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
+
+MAINNET = {
+    "name": "mainnet",
+    "chain_id": 1,
+    "subgraph": "saddle",
+    "rpc_url": f"https://eth-mainnet.alchemyapi.io/v2/{ALCHEMY_API_KEY}"
+}
+ARBITRUM = {
+    "name": "arbitrum",
+    "chain_id": 42161,
+    "subgraph": "saddle-arbitrum",
+    "rpc_url": f"https://arb-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
+}
+SUPPORTED_NETWORKS = [MAINNET, ARBITRUM]
 
 EMPTY_PAYLOAD_ITEM = {
     "oneDayVolume": 0,
@@ -63,8 +79,8 @@ def get_token_prices_usd():
     return tokenPricesUSD
 
 
-def get_graph_data():
-    graphURL = "https://api.thegraph.com/subgraphs/name/saddle-finance/saddle"
+def get_graph_data(subgraph):
+    graphURL = f"https://api.thegraph.com/subgraphs/name/saddle-finance/{subgraph}"
     yesterday = int(time.time()) - 3600*24*NUM_DAYS_TO_AVG
     swapsDailyVolumeGraphQuery = """{{
         swaps {{
@@ -92,9 +108,8 @@ def get_graph_data():
         return
 
 
-def get_pool_token_positions(swaps):
-    w3 = Web3(Web3.HTTPProvider(HTTP_PROVIDER_URL))
-    identity = lambda x: x
+def get_pool_token_positions(network, swaps):
+    w3 = Web3(Web3.HTTPProvider(network["rpc_url"]))
     calls = []
     # get token positions for each pool
     for pool in swaps:
@@ -102,7 +117,7 @@ def get_pool_token_positions(swaps):
             calls.append(
                 Call(
                     pool['address'], 
-                    ['getTokenIndex(address)(uint8)', token['address']], 
+                    ['getTokenIndex(address)(uint8)', token['address']],
                     [[f"{pool['address']}_{token['address']}", identity]]
                 )
             )
@@ -120,7 +135,7 @@ def get_pool_token_positions(swaps):
             poolTokenPositions[pool['address']] = idxs
         return poolTokenPositions
     except Exception as e:
-        logger.error(f"Error getting pool token positions: {e}")
+        logger.error(f"\nError getting pool token positions: {e}")
         return
 
 def get_one_day_volume(tokenPricesUSD, graph_data):
@@ -198,28 +213,33 @@ def get_token_addresses(swaps):
 
 
 def main():
-    graph_data = get_graph_data()
-    if graph_data is None:
-        return
-    pool_token_positions = get_pool_token_positions(graph_data)
-    tokenAddresses = get_token_addresses(graph_data)
-    print("\n/********** Token Addresses **********/")
-    print("\n".join(list(map(lambda pair: f"{pair[1]:<25} {pair[0]}", sorted(tokenAddresses.items(), key=lambda pair: pair[1].lower())))))
-
     tokenPricesUSD = get_token_prices_usd()
     print("\n/********** Token Prices **********/")
     print("\n".join(list(map(lambda pair: f"{pair[0]:<25} {pair[1]:>10,.2f}", sorted(tokenPricesUSD.items(), key=lambda pair: pair[1])))))
     if tokenPricesUSD is None:
         return
-    print(f"\n/********** Exchanges of {NUM_DAYS_TO_AVG} Days **********/")
-    payload = get_one_day_volume(tokenPricesUSD, graph_data)
-    payload = get_swap_tvls(payload, tokenPricesUSD, graph_data, pool_token_positions)    
-    payload = calculate_apys(payload, graph_data)
-    print(f"\n/********** Final Result (avg of {NUM_DAYS_TO_AVG} days) **********/")
-    print(f"{'Address':<50} {'APY':<10} {'Volume':<10} {'TVL':<13}")
-    for address, data in sorted(payload.items(), key=lambda pair: pair[1]["TVL"], reverse=True):
-        print(f"{address:<50} {data['APY']:<10.4f} {int(data['oneDayVolume']):>10,d} {int(data['TVL']):>13,d}")
-    write_to_ipfs(payload)
+
+    all_networks_payloads = {}
+    for network in SUPPORTED_NETWORKS:
+        graph_data = get_graph_data(network["subgraph"])
+        if graph_data is None:
+            return
+        
+        pool_token_positions = get_pool_token_positions(network, graph_data)
+        tokenAddresses = get_token_addresses(graph_data)
+        print(f"\n/********** {network['name']} Token Addresses **********/")
+        print("\n".join(list(map(lambda pair: f"{pair[1]:<25} {pair[0]}", sorted(tokenAddresses.items(), key=lambda pair: pair[1].lower())))))
+
+        print(f"\n/********** {network['name']} Exchanges of {NUM_DAYS_TO_AVG} Days **********/")
+        payload = get_one_day_volume(tokenPricesUSD, graph_data)
+        payload = get_swap_tvls(payload, tokenPricesUSD, graph_data, pool_token_positions)    
+        payload = calculate_apys(payload, graph_data)
+        all_networks_payloads[network["chain_id"]] = payload
+        print(f"\n/********** {network['name']} Final Result (avg of {NUM_DAYS_TO_AVG} days) **********/")
+        print(f"{'Address':<50} {'APY':<10} {'Volume':<10} {'TVL':<13}")
+        for address, data in sorted(payload.items(), key=lambda pair: pair[1]["TVL"], reverse=True):
+            print(f"{address:<50} {data['APY']:<10.4f} {int(data['oneDayVolume']):>10,d} {int(data['TVL']):>13,d}")
+    write_to_ipfs({**all_networks_payloads, **all_networks_payloads[MAINNET["chain_id"]]}) # merge mainnet into parent obj for backwards compatability
 
 
 if __name__ == "__main__":
