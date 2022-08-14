@@ -9,6 +9,7 @@ requests = "*"
 boto3 = "*"
 python-dotenv = "*"
 multicall = "*"
+certifi = "*"
 
 [requires]
 python_version = "3.8"
