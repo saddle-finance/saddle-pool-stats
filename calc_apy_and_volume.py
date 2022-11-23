@@ -44,11 +44,9 @@ EMPTY_PAYLOAD_ITEM = {
 }
 
 def get_token_type_by_name(name):
-type_name_cryptocurrency = ["USD","BTC","ETH"]
-    for x in token_type_by:
-        if x == name.upper():
-            return(x)
-    return "USD" # frax etc
+    name = name.upper()
+    major_types = ["USD", "BTC", "ETH"]
+    if name in major_types return name else "USD"
 
 
 def get_token_prices_usd():
