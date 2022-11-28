@@ -3,7 +3,6 @@ import json
 import logging
 import time
 import os
-import sys
 from dotenv import load_dotenv
 from util import get_fleek_client
 from multicall import Call, Multicall
@@ -234,7 +233,11 @@ def main():
         print(f"{'Address':<50} {'APY':<10} {'Volume':<10} {'TVL':<13}")
         for address, data in sorted(payload.items(), key=lambda pair: pair[1]["TVL"], reverse=True):
             print(f"{address:<50} {data['APY']:<10.4f} {int(data['oneDayVolume']):>10,d} {int(data['TVL']):>13,d}")
-    write_to_ipfs({**all_networks_payloads, **all_networks_payloads[MAINNET["chain_id"]]}) # merge mainnet into parent obj for backwards compatability
+    
+    write_to_ipfs({
+      "seconds_since_epoch": round(time.time()),
+      **all_networks_payloads,
+    })
 
 
 if __name__ == "__main__":
