@@ -34,7 +34,14 @@ ARBITRUM = {
     "subgraph": "saddle-arbitrum",
     "rpc_url": f"https://arb-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
 }
-SUPPORTED_NETWORKS = [MAINNET, ARBITRUM]
+OPTIMISM = {
+    "name": "optimism",
+    "chain_id": 10,
+    "subgraph": "optimism",
+    "rpc_url": f"https://opt-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
+}
+
+SUPPORTED_NETWORKS = [MAINNET, ARBITRUM, OPTIMISM]
 
 EMPTY_PAYLOAD_ITEM = {
     "oneDayVolume": 0,
